@@ -55,9 +55,13 @@ const getPointLight = (color, intensity, distance) => {
   return light
 }
 
-function drawBoard() {
+function initBoard() {
   board.meshes = [[], [], []] //Each array represents 1 z slice
+}
+
+function drawBoard() {
   let cbColors = []
+  console.log(board)
   cbColors.push(0xababab)
   cbColors.push(0x454545)
   let lastColorIndex = 0;
@@ -69,8 +73,23 @@ function drawBoard() {
         lastColorIndex = lastColorIndex==0 ? 1 : 0
         let cube = new THREE.Mesh(geometry, material)
         cube.position.set(x-1, y-1, z-1)
-        board.meshes[z].push(cube)
-        scene.add(cube)
+        cube.removed = false
+        let alreadyExists = false
+        for(var i of board.meshes[z]) {
+          if(i.position.x == cube.position.x && i.position.y == cube.position.y && i.position.z == cube.position.z) {
+            if(!i.removed) {
+              alreadyExists = true
+            }
+            if(i.removed) {
+              i.removed = false
+              scene.add(i)
+            }
+          }
+        }
+        if(!alreadyExists) {
+          board.meshes[z].push(cube)
+          scene.add(cube)
+        }
       }
     }
   }
@@ -122,19 +141,25 @@ function updateBoardDisplay() {
   xsectiontype = xsectiontypeselect.value
   let slice = getCrossSection(xsectiontype, xsection - 1)
   console.log(slice.length)
+  drawBoard()
   resetBoardColors()
   highlightSelection(slice, xsection - 1)
   let showall = showallinput.checked
   if(!showall) {
-    for(let z of board.meshes) {
-      z.forEach(mesh => {
+    for(let i of board.meshes) {
+      for(let mesh of i) {
         if(!slice.includes(mesh)) {
-          mesh.geometry.dispose()
-          mesh.material.dispose()
-          scene.remove(mesh)
-          console.log(scene.children)
+          let x = mesh.position.x
+          let y = mesh.position.y
+          let z = mesh.position.z
+          for(var child of scene.children) {
+            if(child.type == "Mesh" && child.position.x == x && child.position.y == y && child.position.z == z ) {
+              mesh.removed = true
+              scene.remove(child)
+            }
+          }
         }
-      })
+      }
     }
   }
 }
@@ -146,9 +171,8 @@ xsectionselectrange.oninput = (event) => {
   updateBoardDisplay()
 }
 
+initBoard()
 drawBoard()
-
 xsection = xsectionselectrange.value
 let slice = getCrossSection(xsectiontype, xsection - 1)
-drawBoard()
 highlightSelection(slice, xsection - 1)
